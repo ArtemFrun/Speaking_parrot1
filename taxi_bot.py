@@ -20,7 +20,7 @@ user_id = 0
 
 try:
     cursor.execute(
-        '''CREATE TABLE passenger (user_name text, surname text, phone integer, chat_id integer, user_id integer)''')
+        '''CREATE TABLE passenger (user_name TEXT, surname TEXT, phone INTEGER, chat_id INTEGER, user_id INTEGER)''')
 except:
     pass
 
@@ -72,12 +72,10 @@ def get_reg(message):
     global chat_id
     global user_id
     chat_id = message.chat.id
+    cursor.execute('INSERT INTO passenger VALUES (?, ?, ?, ?, ?)', (name, surname, phone, chat_id, user_id))
+    conn.commit()
 
 
-info = ["bvz", "afqf", 1456, 1123, 1231]
-cursor.executemany("INSERT INTO passenger VALUES (?, ?, ?, ?, ?)", info)
-
-conn.commit()
 cursor.close()
 conn.close()
 
