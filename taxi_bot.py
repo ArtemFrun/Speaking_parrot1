@@ -4,13 +4,14 @@ import telebot
 from telebot import types
 import sqlite3
 import customData
-import Reg
 
 conn = sqlite3.connect('mydb.sqlite')
 cursor = conn.cursor()
 
-
+###, request_location=True
 bot = telebot.TeleBot(customData.TOKEN)
+
+
 
 try:
     cursor.execute(
@@ -68,13 +69,19 @@ def get_surname(message):
 def get_reg(message):
     global chat_id
     chat_id = message.chat.id
-    user_id = message.update.id
+    user_id = 0
     info = [name, surname, phone, chat_id, user_id]
     with sqlite3.connect("mydb.sqlite") as con:
         cur = con.cursor()
     cur.execute('INSERT INTO passenger VALUES (?, ?, ?, ?, ?)',
                 (info))
     con.commit()
+    markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)
+    btn_location = types.KeyboardButton('Начать поездку')
+    markup_menu.add(btn_location)
+    bot.send_message(message.chat.id, "Регистрация успешна.", reply_markup=markup_menu)
+
+
 
 
 
@@ -127,6 +134,37 @@ def get_reg_dr(message):
     cur.execute('INSERT INTO drive VALUES (?, ?, ?, ?, ?, ?, ?, ?)',(info))
     con.commit()
 
+
+### Начало поездки пасажира
+
+@bot.message_handler(func=lambda message: True)
+def trip(message):
+    if message.text == "Начать поездку":
+        keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+        button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
+        keyboard.add(button_geo)
+        bot.send_message(message.chat.id, "Отправите Ваше местоположение",
+                         reply_markup=keyboard)
+
+@bot.message_handler(func=lambda message: True, content_types=['location'])
+def location(message):
+    global lon_pas
+    global lat_pas
+    lon_pas = message.location.longitude
+    lat_pas = message.location.latitude
+    bot.send_message(message.chat.id, "Введите адрес от куда будем ехать. Улица, дом, падезд.")
+    bot.register_next_step_handler(message, arrivel)
+
+def arrivel (message):
+    global dispatch
+    dispatch = message.text
+    bot.send_message(message.chat.id, "Введите адрес куда едим. Улица, дом.")
+    bot.register_next_step_handler(message, expectation)
+
+def expectation(message):
+    global expectation
+    expectation = message.text
+    bot.send_message(message.chat.id, "Поиск машины")
 
 ###cursor.close()
 ###conn.close()
