@@ -57,9 +57,15 @@ def handle_text(call):
     elif call.data == "NO_pas_reg":
         bot.send_message(call.message.chat.id, "Номер телефона")
         bot.register_next_step_handler(call.message, get_phone)
-    elif call.data == "NO_pas_reg":
+    elif call.data == "YES_pas_dr":
+        bot.send_message(call.message.chat.id, "Для завершения наберите. ОК")
+        bot.register_next_step_handler(call.message, get_reg_dr)
+    elif call.data == "NO_pas_dr":
         bot.send_message(call.message.chat.id, "Номер телефона")
-        bot.register_next_step_handler(call.message, get_phone)
+        bot.register_next_step_handler(call.message, get_phone_dr)
+
+
+
 
 ###Регистрация пасажира
 ###Прийом номера телефона
@@ -135,6 +141,10 @@ def get_phone_dr (message):
 
 def get_name_dr(message):
     global name
+    global chat_id
+    global user_id
+    user_id = 0
+    chat_id = message.chat.id
     name = message.text
     bot.send_message(message.chat.id, 'Введите Фамилию')
     bot.register_next_step_handler(message, get_surname_dr)
@@ -164,19 +174,28 @@ def get_number_car(message):
 def get_car_model(message):
     global car_model
     car_model = message.text
-    bot.send_message(message.chat.id, 'ДА' + name)
-    bot.register_next_step_handler(message, get_reg_dr)
+    keyboard = types.InlineKeyboardMarkup()  # наша клавиатура
+    key_yes = types.InlineKeyboardButton(text='ДА', callback_data='YES_pas_dr')
+    keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
+    key_no = types.InlineKeyboardButton(text='НЕТ', callback_data='NO_pas_dr')
+    keyboard.add(key_no)
+    info_reg_pas = 'Тебя зовут ' + name + ' ' + surname + ', номер телефона: ' + str(phone) + \
+                   '. У тебя автомобиль' + car_model + ', номерной знак: ' +  number_car + \
+                   ', цвет: ' + color_car + ' ?'
+    bot.send_message(message.from_user.id, text=info_reg_pas, reply_markup=keyboard)
+
 
 
 def get_reg_dr(message):
-    global chat_id
-    chat_id = message.chat.id
-    user_id = 0
     info = [name, surname, phone, chat_id, user_id, color_car, number_car, car_model]
     with sqlite3.connect("mydb.sqlite") as con:
         cur = con.cursor()
     cur.execute('INSERT INTO drive VALUES (?, ?, ?, ?, ?, ?, ?, ?)',(info))
     con.commit()
+    markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+    btn_location = types.KeyboardButton('Поиск пассажира')
+    markup_menu.add(btn_location)
+    bot.send_message(message.chat.id, "Регистрация успешна.", reply_markup=markup_menu)
 ###Конец регистрации водителя
 
 
@@ -227,7 +246,7 @@ def trip_price(message):
     button_geo = types.KeyboardButton(text="Отменить")
     keyboard.add(button_geo)
     bot.send_message(message.chat.id, "Для отмены нажмите кнопку... Отменить ", reply_markup=keyboard)
-    Trip.trip_pas(dispatch, expectation, lon_pas, lat_pas, chat_id, price)
+    Trip.trip_pas(dispatch, expectation, price, lon_pas, lat_pas, chat_id)
     bot.register_next_step_handler(message, cancel_trip)
 
 
@@ -239,17 +258,48 @@ def cancel_trip(message):
 def conf_cancel_trip(message):
     if message.text == "Да":
         bot.send_message(message.chat.id, "Поиск отменен")
-        global _status
-        _status = 4
-        Trip.cancel_trip_pas(_status)
+        global _chat_id
+        _chat_id = message.chat.id
+        Trip.cancel_trip_pas(_chat_id)
         markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
         btn_location = types.KeyboardButton('Начать поездку')
         markup_menu.add(btn_location)
-        bot.send_message(message.chat.id, "Для поиска автомобиля нажмите на кнопкую Начать поездку", reply_markup=markup_menu)
+        bot.send_message(message.chat.id, "Для поиска автомобиля нажмите на кнопкую. Начать поездку", reply_markup=markup_menu)
 
 
 
 ###Конец поездки пассажира
+
+
+
+### Начало поиска пассажира
+@bot.message_handler(func=lambda message: True)
+def trip(message):
+    if message.text == "Поиск пассажира":
+        keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+        button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
+        keyboard.add(button_geo)
+        bot.send_message(message.chat.id, "Отправите Ваше местоположение",
+                         reply_markup=keyboard)
+
+
+@bot.message_handler(func=lambda message: True, content_types=['location'])
+def location(message):
+    global lon_dr
+    global lat_dr
+    global _chat_id
+    _chat_id = 0
+    lon_dr = message.location.longitude
+    lat_dr = message.location.latitude
+    Trip.active_search_passenger(_chat_id)
+
+
+
+
+### Конец поиска пассажира
+
+
+
 
 ###cursor.close()
 ###conn.close()
