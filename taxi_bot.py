@@ -5,6 +5,8 @@ from telebot import types
 import sqlite3
 import customData
 import Trip
+import time
+from datetime import timedelta, datetime
 
 conn = sqlite3.connect('mydb.sqlite')
 cursor = conn.cursor()
@@ -22,7 +24,7 @@ except:
 ###Таблица поездок. Обозначения статуса: 1 - активный поиск поездки, 2 - заказ в работе, 3 - заказ выполнен, 4 - заказ отменен.
 try:
     cursor.execute(
-        '''CREATE TABLE trip (dispatch TEXT, expectation TEXT, price INTEGER, lon_pas FLOAT, lat_pas FLOAT, chat_id INTEGER, status INTEGER)''')
+        '''CREATE TABLE trip (dispatch TEXT, expectation TEXT, price INTEGER, lon_pas FLOAT, lat_pas FLOAT, chat_id INTEGER, status_trip INTEGER, date_Create TEXT, data_seconds INTEGER)''')
 except:
     pass
 ###Таблица регистрации водителей.
@@ -141,10 +143,10 @@ def get_phone_dr (message):
 
 def get_name_dr(message):
     global name
-    global chat_id
+    global chat_id_dr
     global user_id
     user_id = 0
-    chat_id = message.chat.id
+    chat_id_dr = message.chat.id
     name = message.text
     bot.send_message(message.chat.id, 'Введите Фамилию')
     bot.register_next_step_handler(message, get_surname_dr)
@@ -153,21 +155,21 @@ def get_name_dr(message):
 def get_surname_dr(message):
     global surname
     surname = message.text
-    bot.send_message(message.chat.id, 'Цвет автомобиля' + name)
+    bot.send_message(message.chat.id, 'Цвет автомобиля')
     bot.register_next_step_handler(message, get_color_car)
 
 
 def get_color_car(message):
     global color_car
     color_car = message.text
-    bot.send_message(message.chat.id, 'Номер автомобиля' + name)
+    bot.send_message(message.chat.id, 'Номер автомобиля')
     bot.register_next_step_handler(message, get_number_car)
 
 
 def get_number_car(message):
     global number_car
     number_car = message.text
-    bot.send_message(message.chat.id, 'Марка автомобиля' + name)
+    bot.send_message(message.chat.id, 'Марка автомобиля')
     bot.register_next_step_handler(message, get_car_model)
 
 
@@ -179,15 +181,15 @@ def get_car_model(message):
     keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
     key_no = types.InlineKeyboardButton(text='НЕТ', callback_data='NO_pas_dr')
     keyboard.add(key_no)
-    info_reg_pas = 'Тебя зовут ' + name + ' ' + surname + ', номер телефона: ' + str(phone) + \
-                   '. У тебя автомобиль' + car_model + ', номерной знак: ' +  number_car + \
-                   ', цвет: ' + color_car + ' ?'
+    info_reg_pas = 'Тебя зовут ' + name + ' ' + surname + ', \nномер телефона: ' + str(phone) + \
+                   '\nАвтомобиль марки ' + car_model + '\nномерной знак: ' +  number_car + \
+                   '\nцвет: ' + color_car + ' ?'
     bot.send_message(message.from_user.id, text=info_reg_pas, reply_markup=keyboard)
 
 
 
 def get_reg_dr(message):
-    info = [name, surname, phone, chat_id, user_id, color_car, number_car, car_model]
+    info = [name, surname, phone, chat_id_dr, user_id, color_car, number_car, car_model]
     with sqlite3.connect("mydb.sqlite") as con:
         cur = con.cursor()
     cur.execute('INSERT INTO drive VALUES (?, ?, ?, ?, ?, ?, ?, ?)',(info))
@@ -204,24 +206,42 @@ def get_reg_dr(message):
 
 @bot.message_handler(func=lambda message: True)
 def trip(message):
+    global type
     if message.text == "Начать поездку":
+        type = 'passenger'
+        keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
+        button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
+        keyboard.add(button_geo)
+        bot.send_message(message.chat.id, "Отправите Ваше местоположение",
+                         reply_markup=keyboard)
+    elif message.text == "Поиск пассажира":
+        type = 'drive'
         keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
         button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
         keyboard.add(button_geo)
         bot.send_message(message.chat.id, "Отправите Ваше местоположение",
                          reply_markup=keyboard)
 
-
+###Передача геоданых
 @bot.message_handler(func=lambda message: True, content_types=['location'])
-def location(message):
-    global lon_pas
-    global lat_pas
-    lon_pas = message.location.longitude
-    lat_pas = message.location.latitude
-    bot.send_message(message.chat.id, "Введите адрес от куда будем ехать. Улица, дом, падезд.")
-    bot.register_next_step_handler(message, arrivel)
+def location_pas(message):
+    if (type == 'passenger'):
+        global lon_pas
+        global lat_pas
+        lon_pas = message.location.longitude
+        lat_pas = message.location.latitude
+        bot.send_message(message.chat.id, "Введите адрес от куда будем ехать. Улица, дом, падезд.")
+        bot.register_next_step_handler(message, arrivel)
+    elif(type == 'drive'):
+        global lon_dr
+        global lat_dr
+        lon_dr = message.location.longitude
+        lat_dr = message.location.latitude
+        bot.register_next_step_handler(message, location_drive(message))
 
 
+
+### Для пассажира
 def arrivel(message):
     global dispatch
     dispatch = message.text
@@ -239,6 +259,8 @@ def expectation(message):
 def trip_price(message):
     global price
     global chat_id
+    time_Create_dr = time.strftime("%Y.%m.%d", time.localtime())
+    date_Create = time_Create_dr
     chat_id = message.chat.id
     price = int(message.text)
     bot.send_message(message.chat.id, "Поиск машины")
@@ -246,7 +268,7 @@ def trip_price(message):
     button_geo = types.KeyboardButton(text="Отменить")
     keyboard.add(button_geo)
     bot.send_message(message.chat.id, "Для отмены нажмите кнопку... Отменить ", reply_markup=keyboard)
-    Trip.trip_pas(dispatch, expectation, price, lon_pas, lat_pas, chat_id)
+    Trip.trip_pas(dispatch, expectation, price, lon_pas, lat_pas, chat_id, date_Create)
     bot.register_next_step_handler(message, cancel_trip)
 
 
@@ -255,12 +277,11 @@ def cancel_trip(message):
         bot.send_message(message.chat.id, "Для подтвержения отмены, наберите. Да")
         bot.register_next_step_handler(message, conf_cancel_trip)
 
+
 def conf_cancel_trip(message):
     if message.text == "Да":
         bot.send_message(message.chat.id, "Поиск отменен")
-        global _chat_id
-        _chat_id = message.chat.id
-        Trip.cancel_trip_pas(_chat_id)
+        Trip.cancel_trip_pas(chat_id)
         markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
         btn_location = types.KeyboardButton('Начать поездку')
         markup_menu.add(btn_location)
@@ -273,25 +294,12 @@ def conf_cancel_trip(message):
 
 
 ### Начало поиска пассажира
-@bot.message_handler(func=lambda message: True)
-def trip(message):
-    if message.text == "Поиск пассажира":
-        keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
-        button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
-        keyboard.add(button_geo)
-        bot.send_message(message.chat.id, "Отправите Ваше местоположение",
-                         reply_markup=keyboard)
 
 
-@bot.message_handler(func=lambda message: True, content_types=['location'])
-def location(message):
-    global lon_dr
-    global lat_dr
-    global _chat_id
-    _chat_id = 0
-    lon_dr = message.location.longitude
-    lat_dr = message.location.latitude
-    Trip.active_search_passenger(_chat_id)
+def location_drive(message):
+     bot.send_message(message.chat.id, "Начало поиска")
+     Trip.active_search_passenger(message, lon_dr, lat_dr)
+
 
 
 
