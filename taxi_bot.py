@@ -82,18 +82,28 @@ def handle_text(call):
     elif call.data == str(order4):
         bot.send_message(call.message.chat.id, "Хотите принять этот заказ?")
         bot.register_next_step_handler(call.message, accept_trip_drive(call.message, order4))
-    elif call.data == str(order4):
+    elif call.data == str(order5):
         bot.send_message(call.message.chat.id, "Хотите принять этот заказ?")
-        bot.register_next_step_handler(call.message, accept_trip_drive(call.message, order4))
-    elif call.data == "YES_trip_dr":
-        bot.send_message(call.message.chat.id, "Через сколько времени будите")
-        bot.register_next_step_handler(call.message, get_reg_dr)
+        bot.register_next_step_handler(call.message, accept_trip_drive(call.message, order5))
+    elif call.data == "YES_trip_dr": # Запрос на время прибытия
+        bot.register_next_step_handler(call.message, time_arrival_drive(call.message))
     elif call.data == "NO_trip_dr":
         markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
         btn_search = types.KeyboardButton('Поиск пассажира')
         markup_menu.add(btn_search)
         bot.send_message(call.message.chat.id, "Для начала поиска нажмите \"Поиск пассажира\"", reply_markup=markup_menu)
-
+    elif call.data == "1_time":
+        time_arrival = 1
+        bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
+    elif call.data == "3_time":
+        time_arrival = 3
+        bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
+    elif call.data == "5_time":
+        time_arrival = 5
+        bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
+    elif call.data == "10_time":
+        time_arrival = 10
+        bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
 
 
 ###Регистрация пасажира
@@ -344,7 +354,7 @@ def location_drive(message, num, count):
      con = sqlite3.connect("mydb.sqlite")
      cur = con.cursor()
      with con:
-         cur.execute('SELECT * FROM trip WHERE data_seconds<? AND date_Create=? AND status_trip=1',
+         cur.execute('SELECT * FROM trip WHERE data_seconds<? AND date_Create!=? AND status_trip=1',
                      (time_Create_dr, data_Create_dr))
          while True:
              row = cur.fetchone()
@@ -413,6 +423,7 @@ def continue_search(message, num, count):
 
 
 def accept_trip_drive(message, order_num):
+    global trip
     now = datetime.now()
     day = datetime(now.year, now.month, now.day)
     rez = (now - day)
@@ -422,7 +433,7 @@ def accept_trip_drive(message, order_num):
     con = sqlite3.connect("mydb.sqlite")
     cur = con.cursor()
     with con:
-        cur.execute('SELECT * FROM trip WHERE data_seconds<? AND date_Create=? AND status_trip=1',
+        cur.execute('SELECT * FROM trip WHERE data_seconds<? AND date_Create!=? AND status_trip=1',
                     (time_Create_dr, data_Create_dr))
 
         rows = cur.fetchall()[order_num]
@@ -440,6 +451,33 @@ def accept_trip_drive(message, order_num):
 
     bot.send_message(message.chat.id, trip, reply_markup=keyboard)
 
+def time_arrival_drive(message):
+    keyboard = types.InlineKeyboardMarkup()
+    key_time1 = types.InlineKeyboardButton(text='1 Мин', callback_data='1_time')
+    keyboard.add(key_time1)
+    key_time3 = types.InlineKeyboardButton(text='3 Мин', callback_data='3_time')
+    keyboard.add(key_time3)
+    key_time5 = types.InlineKeyboardButton(text='5 Мин', callback_data='5_time')
+    keyboard.add(key_time5)
+    key_time10 = types.InlineKeyboardButton(text='10 Мин', callback_data='10_time')
+    keyboard.add(key_time10)
+    ###bot.send_message(message.chat.id, "Через сколько времени будите", reply_markup=keyboard)
+    request = trip + "\n\nЧерез сколько времени будите"
+    bot.edit_message_text(request , message.chat.id, message.message_id)
+    bot.edit_message_reply_markup(message.chat.id, message.message_id, reply_markup=keyboard)
+
+
+def accepted_teip_drive(message, time_arrival):
+    keyboard = types.InlineKeyboardMarkup()
+    key_arrived = types.InlineKeyboardButton(text='Прибыл на место', callback_data='arrived')
+    keyboard.add(key_arrived)
+    key_cancel = types.InlineKeyboardButton(text='Отменить заказ', callback_data='to_cancel')
+    keyboard.add(key_cancel)
+    key_cancel = types.InlineKeyboardButton(text='Заказ выполнен', callback_data='fulfilled')
+    keyboard.add(key_cancel)
+    request = trip + '\n\nПрибудите через ' + str(time_arrival) + ' мин.'
+    bot.edit_message_text(request, message.chat.id, message.message_id)
+    bot.edit_message_reply_markup(message.chat.id, message.message_id, reply_markup=keyboard)
 
 
 ### Конец поиска пассажира
