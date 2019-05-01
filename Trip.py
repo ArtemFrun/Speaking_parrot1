@@ -81,3 +81,39 @@ def active_search_passenger(message, lon_dr,  lat_dr, i):
 
     if message.text == "Продолжить поиск":
         active_search_passenger(message, lon_dr,  lat_dr, i)
+
+
+
+def message_for_passenger(message, time_arrival, chat_id_passenger, chat_id_drive):
+    con = sqlite3.connect("mydb.sqlite")
+    cur = con.cursor()
+    chat_id_dr = [chat_id_drive]
+    with con:
+        cur.execute('SELECT * FROM drive WHERE chat_id=?',(chat_id_dr))
+        while True:
+            row = cur.fetchone()
+
+            info_dr = ('Ваш заказ принят, машина будет через ' + str(time_arrival) + ' мин.\n\n' + 'Автомобиль марки: ' + row[7]
+                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5])
+            bot.send_message(chat_id_passenger, info_dr)
+            return
+
+
+def car_in_place(message, chat_id_passenger, chat_id_drive):
+    con = sqlite3.connect("mydb.sqlite")
+    cur = con.cursor()
+    chat_id_dr = [chat_id_drive]
+    with con:
+        cur.execute('SELECT * FROM drive WHERE chat_id=?', (chat_id_dr))
+        while True:
+            row = cur.fetchone()
+
+            info_dr = ('Автомобиль на месте. Можите выходить.\n\n' + 'Автомобиль марки: ' + row[7]
+                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5])
+            bot.send_message(chat_id_passenger, info_dr)
+
+            return
+
+
+def review_drive(message, chat_id_passenger, chat_id_drive):
+    bot.send_message(chat_id_passenger, 'Поставте оценку за поездку.')
