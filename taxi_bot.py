@@ -53,9 +53,12 @@ def send_welcom(message):
 @bot.callback_query_handler(func=lambda call: True)
 def handle_text(call):
     if call.data == "pas":
+        global type
+        type = 'passenger'
         bot.send_message(call.message.chat.id, "Номер телефона")
         bot.register_next_step_handler(call.message, get_phone)
     elif call.data == "dr":
+        type = 'drive'
         bot.send_message(call.message.chat.id, "Номер телефона")
         bot.register_next_step_handler(call.message, get_phone_dr)
     elif call.data == "YES_pas_reg":
@@ -93,17 +96,35 @@ def handle_text(call):
         markup_menu.add(btn_search)
         bot.send_message(call.message.chat.id, "Для начала поиска нажмите \"Поиск пассажира\"", reply_markup=markup_menu)
     elif call.data == "1_time":
+        global time_arrival
         time_arrival = 1
+        Trip.message_for_passenger(call.message, time_arrival, chat_id_passenger, chat_id_drive)
         bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
     elif call.data == "3_time":
         time_arrival = 3
+        Trip.message_for_passenger(call.message, time_arrival, chat_id_passenger, chat_id_drive)
         bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
     elif call.data == "5_time":
         time_arrival = 5
+        Trip.message_for_passenger(call.message, time_arrival, chat_id_passenger, chat_id_drive)
         bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
     elif call.data == "10_time":
         time_arrival = 10
+        Trip.message_for_passenger(call.message, time_arrival, chat_id_passenger, chat_id_drive)
         bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
+    elif call.data == "arrived":
+        Trip.car_in_place(call.message, chat_id_passenger, chat_id_drive)
+        bot.register_next_step_handler(call.message, accepted_teip_drive(call.message, time_arrival))
+    elif call.data == "to_cancel":
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_start = types.KeyboardButton('Поиск пассажира')
+        markup_menu.add(btn_start)
+        bot.send_message(call.message.chat.id, "Для начала поиска нажмите \"Поиск пассажира\"", reply_markup=markup_menu)
+    elif call.data == "fulfilled":
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_start = types.KeyboardButton('Поиск пассажира')
+        markup_menu.add(btn_start)
+        bot.send_message(call.message.chat.id, "Для начала поиска нажмите \"Поиск пассажира\"", reply_markup=markup_menu)
 
 
 ###Регистрация пасажира
@@ -232,27 +253,24 @@ def get_reg_dr(message):
     cur.execute('INSERT INTO drive VALUES (?, ?, ?, ?, ?, ?, ?, ?)',(info))
     con.commit()
     markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
-    btn_location = types.KeyboardButton('Поиск пассажира')
-    markup_menu.add(btn_location)
+    btn_start = types.KeyboardButton('Поиск пассажира')
+    markup_menu.add(btn_start)
     bot.send_message(message.chat.id, "Регистрация успешна.", reply_markup=markup_menu)
 ###Конец регистрации водителя
 
 
 
-### Начало поездки пасажира
+### Начало поездки
 
 @bot.message_handler(func=lambda message: True)
 def trip(message):
-    global type
     if message.text == "Начать поездку":
-        type = 'passenger'
         keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
         button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
         keyboard.add(button_geo)
         bot.send_message(message.chat.id, "Отправите Ваше местоположение",
                          reply_markup=keyboard)
     elif message.text == "Поиск пассажира":
-        type = 'drive'
         keyboard = types.ReplyKeyboardMarkup(row_width=1, resize_keyboard=True)
         button_geo = types.KeyboardButton(text="Отправить местоположение", request_location=True)
         keyboard.add(button_geo)
@@ -341,6 +359,11 @@ def location_drive(message, num, count):
      global order4
      global order5
      global counter
+     order1 = 0
+     order2 = 0
+     order3 = 0
+     order4 = 0
+     order5 = 0
      counter = count
      trip_num = num
      keyboards = []
@@ -354,7 +377,7 @@ def location_drive(message, num, count):
      con = sqlite3.connect("mydb.sqlite")
      cur = con.cursor()
      with con:
-         cur.execute('SELECT * FROM trip WHERE data_seconds<? AND date_Create!=? AND status_trip=1',
+         cur.execute('SELECT * FROM trip WHERE data_seconds>? AND date_Create=? AND status_trip=1',
                      (time_Create_dr, data_Create_dr))
          while True:
              row = cur.fetchone()
@@ -424,6 +447,9 @@ def continue_search(message, num, count):
 
 def accept_trip_drive(message, order_num):
     global trip
+    global chat_id_passenger
+    global chat_id_drive
+    chat_id_drive = message.chat.id
     now = datetime.now()
     day = datetime(now.year, now.month, now.day)
     rez = (now - day)
@@ -433,7 +459,7 @@ def accept_trip_drive(message, order_num):
     con = sqlite3.connect("mydb.sqlite")
     cur = con.cursor()
     with con:
-        cur.execute('SELECT * FROM trip WHERE data_seconds<? AND date_Create!=? AND status_trip=1',
+        cur.execute('SELECT * FROM trip WHERE data_seconds>? AND date_Create=? AND status_trip=1',
                     (time_Create_dr, data_Create_dr))
 
         rows = cur.fetchall()[order_num]
@@ -441,7 +467,8 @@ def accept_trip_drive(message, order_num):
     result = float('{:.2f}'.format(geodesic((rows[3], rows[4]), (lon_dr, lat_dr)).km))
     trip = ('Откуда: ' + rows[0] + '\nКуда: ' + rows[1] + '\nЦена: ' + str(rows[2]) + '\nРастояние: ' + str(
         result)
-            + ' КМ')
+            + ' КМ\n\n')
+    chat_id_passenger = int(rows[5])
 
     keyboard = types.InlineKeyboardMarkup()  # наша клавиатура
     key_yes = types.InlineKeyboardButton(text='ДА', callback_data='YES_trip_dr')
@@ -461,8 +488,7 @@ def time_arrival_drive(message):
     keyboard.add(key_time5)
     key_time10 = types.InlineKeyboardButton(text='10 Мин', callback_data='10_time')
     keyboard.add(key_time10)
-    ###bot.send_message(message.chat.id, "Через сколько времени будите", reply_markup=keyboard)
-    request = trip + "\n\nЧерез сколько времени будите"
+    request = trip + "\n\nЧерез сколько времени будите" + '\n\n'
     bot.edit_message_text(request , message.chat.id, message.message_id)
     bot.edit_message_reply_markup(message.chat.id, message.message_id, reply_markup=keyboard)
 
@@ -475,7 +501,7 @@ def accepted_teip_drive(message, time_arrival):
     keyboard.add(key_cancel)
     key_cancel = types.InlineKeyboardButton(text='Заказ выполнен', callback_data='fulfilled')
     keyboard.add(key_cancel)
-    request = trip + '\n\nПрибудите через ' + str(time_arrival) + ' мин.'
+    request = trip + '\n\nПрибудите через ' + str(time_arrival) + ' мин.' + '\n\n'
     bot.edit_message_text(request, message.chat.id, message.message_id)
     bot.edit_message_reply_markup(message.chat.id, message.message_id, reply_markup=keyboard)
 
