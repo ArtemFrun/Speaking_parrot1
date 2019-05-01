@@ -26,11 +26,12 @@ def trip_pas(dispatch, expectation, price, lon_pas, lat_pas, chat_id, date_Creat
     return
 
 ###Отмена поездки пасажиром
-def cancel_trip_pas(chat_id):
+def change_trip_pas(chat_id, status_trip):
     with sqlite3.connect("mydb.sqlite") as con:
-        chat_id_pas = [chat_id]
+        chat_id_pas = chat_id
+        status_trip_pas = status_trip
         cur = con.cursor()
-    cur.execute('UPDATE trip SET status_trip=4 WHERE chat_id=?', (chat_id_pas))
+    cur.execute('UPDATE trip SET status_trip=? WHERE chat_id=?', (status_trip_pas, chat_id_pas))
     con.commit()
     return
 
@@ -94,7 +95,7 @@ def message_for_passenger(message, time_arrival, chat_id_passenger, chat_id_driv
             row = cur.fetchone()
 
             info_dr = ('Ваш заказ принят, машина будет через ' + str(time_arrival) + ' мин.\n\n' + 'Автомобиль марки: ' + row[7]
-                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5])
+                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5] + '\n\nРейтинг водителя: ' + str(int(row[9])/int(row[8]))+ ' ⭐️')
             bot.send_message(chat_id_passenger, info_dr)
             return
 
@@ -109,11 +110,40 @@ def car_in_place(message, chat_id_passenger, chat_id_drive):
             row = cur.fetchone()
 
             info_dr = ('Автомобиль на месте. Можите выходить.\n\n' + 'Автомобиль марки: ' + row[7]
-                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5])
+                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5] + '\n\nРейтинг водителя: ' + str(int(row[9])/int(row[8])) + ' ⭐️')
             bot.send_message(chat_id_passenger, info_dr)
 
             return
 
 
-def review_drive(message, chat_id_passenger, chat_id_drive):
-    bot.send_message(chat_id_passenger, 'Поставте оценку за поездку.')
+def review_drive(message, chat_id_passenger):
+    keyboard = types.InlineKeyboardMarkup()
+    key_star = types.InlineKeyboardButton(text='5 ⭐️', callback_data='5_star')
+    keyboard.add(key_star)
+    key_star = types.InlineKeyboardButton(text='4 ⭐️', callback_data='4_star')
+    keyboard.add(key_star)
+    key_star = types.InlineKeyboardButton(text='3 ⭐️', callback_data='3_star')
+    keyboard.add(key_star)
+    key_star = types.InlineKeyboardButton(text='2 ⭐️', callback_data='2_star')
+    keyboard.add(key_star)
+    key_star = types.InlineKeyboardButton(text='1 ⭐️', callback_data='1_star')
+    keyboard.add(key_star)
+    bot.send_message(chat_id_passenger, 'Поставте оценку за поездку.', reply_markup=keyboard)
+    return
+
+def review_rating_drive(message, star, chat_id_drive):
+    con = sqlite3.connect("mydb.sqlite")
+    cur = con.cursor()
+    chat_id_dr = [chat_id_drive]
+    with con:
+        cur.execute('SELECT * FROM drive WHERE chat_id=?', (chat_id_dr))
+        while True:
+            row = cur.fetchone()
+
+            reting_dr = int(row[9]) + star
+            num_reting = int(row[8]) + 1
+
+            cur.execute('UPDATE drive SET number_of_ratings=? AND sum_of_ratings = ? WHERE chat_id=?', (num_reting, reting_dr, chat_id_drive))
+            con.commit()
+
+            return
