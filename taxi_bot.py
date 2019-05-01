@@ -29,13 +29,15 @@ except:
 ###Таблица поездок. Обозначения статуса: 1 - активный поиск поездки, 2 - заказ в работе, 3 - заказ выполнен, 4 - заказ отменен.
 try:
     cursor.execute(
-        '''CREATE TABLE trip (dispatch TEXT, expectation TEXT, price INTEGER, lon_pas FLOAT, lat_pas FLOAT, chat_id INTEGER, status_trip INTEGER, date_Create TEXT, data_seconds INTEGER)''')
+        '''CREATE TABLE trip (dispatch TEXT, expectation TEXT, price INTEGER, lon_pas FLOAT, lat_pas FLOAT, 
+            chat_id INTEGER, status_trip INTEGER, date_Create TEXT, data_seconds INTEGER)''')
 except:
     pass
 ###Таблица регистрации водителей.
 try:
     cursor.execute(
-        '''CREATE TABLE drive (user_name TEXT, surname TEXT, phone INTEGER, chat_id INTEGER, user_id INTEGER, color_car TEXT, number_car TEXT, car_model TEXT)''')
+        '''CREATE TABLE drive (user_name TEXT, surname TEXT, phone INTEGER, chat_id INTEGER, user_id INTEGER, 
+            color_car TEXT, number_car TEXT, car_model TEXT, number_of_ratings INTEGER, sum_of_ratings INTEGER)''')
 except:
     pass
 
@@ -89,6 +91,7 @@ def handle_text(call):
         bot.send_message(call.message.chat.id, "Хотите принять этот заказ?")
         bot.register_next_step_handler(call.message, accept_trip_drive(call.message, order5))
     elif call.data == "YES_trip_dr": # Запрос на время прибытия
+        Trip.change_trip_pas(chat_id_passenger, 2)
         bot.register_next_step_handler(call.message, time_arrival_drive(call.message))
     elif call.data == "NO_trip_dr":
         markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
@@ -121,10 +124,47 @@ def handle_text(call):
         markup_menu.add(btn_start)
         bot.send_message(call.message.chat.id, "Для начала поиска нажмите \"Поиск пассажира\"", reply_markup=markup_menu)
     elif call.data == "fulfilled":
+        Trip.review_drive(call.message, chat_id_passenger)
         markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
         btn_start = types.KeyboardButton('Поиск пассажира')
         markup_menu.add(btn_start)
         bot.send_message(call.message.chat.id, "Для начала поиска нажмите \"Поиск пассажира\"", reply_markup=markup_menu)
+    elif call.data == "5_star":
+        star = 5
+        Trip.review_rating_drive(call.message, star, chat_id_drive)
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_location = types.KeyboardButton('Начать поездку')
+        markup_menu.add(btn_location)
+        bot.send_message(call.message.chat.id, "Для поиска автомобиля нажмите на кнопкую. Начать поездку", reply_markup=markup_menu)
+    elif call.data == "4_star":
+        star = 4
+        Trip.review_rating_drive(call.message, star, chat_id_drive)
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_location = types.KeyboardButton('Начать поездку')
+        markup_menu.add(btn_location)
+        bot.send_message(call.message.chat.id, "Для поиска автомобиля нажмите на кнопкую. Начать поездку",
+                         reply_markup=markup_menu)
+    elif call.data == "3_star":
+        star = 3
+        Trip.review_rating_drive(call.message, star, chat_id_drive)
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_location = types.KeyboardButton('Начать поездку')
+        markup_menu.add(btn_location)
+        bot.send_message(call.message.chat.id, "Для поиска автомобиля нажмите на кнопкую. Начать поездку", reply_markup=markup_menu)
+    elif call.data == "2_star":
+        star = 2
+        Trip.review_rating_drive(call.message, star, chat_id_drive)
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_location = types.KeyboardButton('Начать поездку')
+        markup_menu.add(btn_location)
+        bot.send_message(call.message.chat.id, "Для поиска автомобиля нажмите на кнопкую. Начать поездку", reply_markup=markup_menu)
+    elif call.data == "1_star":
+        star = 1
+        Trip.review_rating_drive(call.message, star, chat_id_drive)
+        markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
+        btn_location = types.KeyboardButton('Начать поездку')
+        markup_menu.add(btn_location)
+        bot.send_message(call.message.chat.id, "Для поиска автомобиля нажмите на кнопкую. Начать поездку", reply_markup=markup_menu)
 
 
 ###Регистрация пасажира
@@ -250,7 +290,7 @@ def get_reg_dr(message):
     info = [name, surname, phone, chat_id_dr, user_id, color_car, number_car, car_model]
     with sqlite3.connect("mydb.sqlite") as con:
         cur = con.cursor()
-    cur.execute('INSERT INTO drive VALUES (?, ?, ?, ?, ?, ?, ?, ?)',(info))
+    cur.execute('INSERT INTO drive VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, 0)',(info))
     con.commit()
     markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
     btn_start = types.KeyboardButton('Поиск пассажира')
@@ -335,7 +375,8 @@ def cancel_trip(message):
 def conf_cancel_trip(message):
     if message.text == "Да":
         bot.send_message(message.chat.id, "Поиск отменен")
-        Trip.cancel_trip_pas(chat_id)
+        status_trip_pas = 4
+        Trip.change_trip_pas(chat_id, status_trip_pas)
         markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
         btn_location = types.KeyboardButton('Начать поездку')
         markup_menu.add(btn_location)
