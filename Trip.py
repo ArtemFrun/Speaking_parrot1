@@ -137,13 +137,11 @@ def review_rating_drive(message, star, chat_id_drive):
     chat_id_dr = [chat_id_drive]
     with con:
         cur.execute('SELECT * FROM drive WHERE chat_id=?', (chat_id_dr))
-        while True:
-            row = cur.fetchone()
+        row = cur.fetchone()
 
-            reting_dr = int(row[9]) + star
-            num_reting = int(row[8]) + 1
+        reting_dr = int(row[9]) + star
+        num_reting = int(row[8]) + 1
 
-            cur.execute('UPDATE drive SET number_of_ratings=? AND sum_of_ratings = ? WHERE chat_id=?', (num_reting, reting_dr, chat_id_drive))
-            con.commit()
+        cur.execute('UPDATE drive SET number_of_ratings=?, sum_of_ratings = ? WHERE chat_id=?', (num_reting, reting_dr, chat_id_drive))
 
-            return
+        return
