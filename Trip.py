@@ -94,8 +94,15 @@ def message_for_passenger(message, time_arrival, chat_id_passenger, chat_id_driv
         while True:
             row = cur.fetchone()
 
+
+
+            if (row[8] == 0):
+                star = 0
+            else:
+                star = int(row[9]) / int(row[8])
+
             info_dr = ('Ваш заказ принят, машина будет через ' + str(time_arrival) + ' мин.\n\n' + 'Автомобиль марки: ' + row[7]
-                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5] + '\n\nРейтинг водителя: ' + str(int(row[9])/int(row[8]))+ ' ⭐️')
+                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5] + '\n\nРейтинг водителя: ' + str(star)+ ' ⭐️')
             bot.send_message(chat_id_passenger, info_dr)
             return
 
@@ -109,8 +116,13 @@ def car_in_place(message, chat_id_passenger, chat_id_drive):
         while True:
             row = cur.fetchone()
 
+            if (row[8] == 0):
+                star = 0
+            else:
+                star = int(row[9]) / int(row[8])
+
             info_dr = ('Автомобиль на месте. Можите выходить.\n\n' + 'Автомобиль марки: ' + row[7]
-                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5] + '\n\nРейтинг водителя: ' + str(int(row[9])/int(row[8])) + ' ⭐️')
+                       + '\nНомерной знак: ' + row[6] + '\nЦвет: ' + row[5] + '\n\nРейтинг водителя: ' + str(star) + ' ⭐️')
             bot.send_message(chat_id_passenger, info_dr)
 
             return
