@@ -1,1 +1,1 @@
-web: gunicorn taxi_bot:app
+web: gunicorn taxi_bot.py
