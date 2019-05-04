@@ -1,1 +1,1 @@
-worker python taxi_bot.py $PORT
+web: gunicron taxi_bot:app
