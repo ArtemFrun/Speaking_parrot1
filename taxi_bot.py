@@ -64,14 +64,12 @@ def handle_text(call):
         bot.send_message(call.message.chat.id, "Номер телефона")
         bot.register_next_step_handler(call.message, get_phone_dr)
     elif call.data == "YES_pas_reg":
-        bot.send_message(call.message.chat.id, "Для завершения наберите. ОК")
-        bot.register_next_step_handler(call.message, get_reg)
+        bot.register_next_step_handler(call.message, get_reg(call.message))
     elif call.data == "NO_pas_reg":
         bot.send_message(call.message.chat.id, "Номер телефона")
         bot.register_next_step_handler(call.message, get_phone)
     elif call.data == "YES_pas_dr":
-        bot.send_message(call.message.chat.id, "Для завершения наберите. ОК")
-        bot.register_next_step_handler(call.message, get_reg_dr)
+        bot.register_next_step_handler(call.message, get_reg_dr(call.message))
     elif call.data == "NO_pas_dr":
         bot.send_message(call.message.chat.id, "Номер телефона")
         bot.register_next_step_handler(call.message, get_phone_dr)
@@ -220,7 +218,7 @@ def get_reg(message):
     markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)     ###переход к поиску поездки
     btn_location = types.KeyboardButton('Начать поездку')
     markup_menu.add(btn_location)
-    bot.send_message(message.chat.id, "Регистрация успешна.", reply_markup=markup_menu)
+    bot.send_message(message.chat.id, "Регистрация успешна. Для на чала поездки нажмите кнопку \"Начать поездку\"", reply_markup=markup_menu)
 ###Конец регистрации пасажира
 
 
@@ -295,7 +293,7 @@ def get_reg_dr(message):
     markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
     btn_start = types.KeyboardButton('Поиск пассажира')
     markup_menu.add(btn_start)
-    bot.send_message(message.chat.id, "Регистрация успешна.", reply_markup=markup_menu)
+    bot.send_message(message.chat.id, "Регистрация успешна. Для поска пассажиров нажмите кнопу \"Поиск пассажира\"", reply_markup=markup_menu)
 ###Конец регистрации водителя
 
 
@@ -425,8 +423,8 @@ def location_drive(message, num, count):
 
              if row == None:
                  markup_menu = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=1)  ###переход к поиску поездки
-                 btn_search = types.KeyboardButton('Поиск пассажира')
-                 markup_menu.add(btn_search)
+                 btn_restart = types.KeyboardButton('Поиск пассажира')
+                 markup_menu.add(btn_restart)
                  bot.send_message(message.chat.id, "Больше нету заказов. Для начала поиска нажмите \"Поиск пассажира\"",
                                   reply_markup=markup_menu)
                  trip_num = 0
