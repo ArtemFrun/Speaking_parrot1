@@ -1,1 +1,1 @@
-web: gunicron taxi_bot:app
+web: python taxi_bot.py:app
