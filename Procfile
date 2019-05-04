@@ -1,1 +1,1 @@
-web: python taxi_bot.py:app
+web: python taxi_bot.py
