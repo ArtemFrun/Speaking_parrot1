@@ -308,7 +308,6 @@ def trip_dr(message):
 ###Передача геоданых
 @bot.message_handler(func=lambda message: True, content_types=['location'])
 def location_pas(message):
-    type = 'drive'
     if type == 'passenger':
         global lon_pas
         global lat_pas
