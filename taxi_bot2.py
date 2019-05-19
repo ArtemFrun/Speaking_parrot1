@@ -9,6 +9,7 @@ import Reg
 import time
 from datetime import timedelta, datetime
 from geopy.distance import geodesic
+import googlemaps
 
 conn = sqlite3.connect('mydb.sqlite')
 cursor = conn.cursor()
@@ -53,21 +54,89 @@ def send_welcom(message):
 def passenger(call):
     global type
     type = 'passenger'
+    con = sqlite3.connect("mydb.sqlite")
+    cur = con.cursor()
+    chat_id = [call.message.chat.id]
+    with con:
+        cur.execute('SELECT * FROM passenger WHERE chat_id=? ',
+                    (chat_id))
+        row = cur.fetchone()
+        if row == None:
+            global passenger_change
+            passenger_change = 0
+            bot.send_message(call.message.chat.id, "Номер телефона")
+            bot.register_next_step_handler(call.message, get_phone)
+        else:
+            bot.send_message(call.message.chat.id, "Вы уже зарегестрированы")
+            info = 'Тебя зовут ' + row[0] + ' ' + row[1] + ', номер телефона: ' + str(row[2]) + '?'
+            keyboard = types.InlineKeyboardMarkup()  # наша клавиатура
+            key_yes = types.InlineKeyboardButton(text='Верно. Оставить', callback_data='Not_change')
+            keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
+            key_no = types.InlineKeyboardButton(text='Изменить', callback_data='YES_change')
+            keyboard.add(key_no)
+            bot.send_message(call.message.chat.id, info, reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: call.data == "Not_change")
+def passenger_Not_change(call):
+    bot.send_message(call.message.chat.id, 'Изменений нет')
+    Trip.START_TRIP(call.message)
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "YES_change")
+def passenger_Not_change(call):
+    global passenger_change
+    passenger_change = 1
     bot.send_message(call.message.chat.id, "Номер телефона")
     bot.register_next_step_handler(call.message, get_phone)
-
 
 @bot.callback_query_handler(func=lambda call: call.data == "dr")
 def drive(call):
     global type
     type = 'drive'
+    con = sqlite3.connect("mydb.sqlite")
+    cur = con.cursor()
+    chat_id = [call.message.chat.id]
+    with con:
+        cur.execute('SELECT * FROM drive WHERE chat_id=? ',
+                    (chat_id))
+        row = cur.fetchone()
+        if row == None:
+            global drive_change
+            drive_change = 0
+            bot.send_message(call.message.chat.id, "Номер телефона")
+            bot.register_next_step_handler(call.message, get_phone_dr)
+        else:
+            bot.send_message(call.message.chat.id, "Вы уже зарегестрированы")
+            info = 'Тебя зовут ' + row[0] + ' ' + row[1] + ', \nномер телефона: ' + str(row[2]) + \
+                   '\nАвтомобиль марки ' + row[7] + '\nномерной знак: ' + row[6] + \
+                   '\nцвет: ' + row[5] + ' ?'
+            keyboard = types.InlineKeyboardMarkup()  # наша клавиатура
+            key_yes = types.InlineKeyboardButton(text='Верно. Оставить', callback_data='Not_change_dr')
+            keyboard.add(key_yes)  # добавляем кнопку в клавиатуру
+            key_no = types.InlineKeyboardButton(text='Изменить', callback_data='YES_change_dr')
+            keyboard.add(key_no)
+            bot.send_message(call.message.chat.id, info, reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: call.data == "Not_change_dr")
+def passenger_Not_change(call):
+    bot.send_message(call.message.chat.id, 'Изменений нет')
+    Trip.START_SEARCH_PAS(call.message)
+
+
+@bot.callback_query_handler(func=lambda call: call.data == "YES_change_dr")
+def passenger_Not_change(call):
+    global drive_change
+    drive_change = 1
     bot.send_message(call.message.chat.id, "Номер телефона")
     bot.register_next_step_handler(call.message, get_phone_dr)
 
 
 @bot.callback_query_handler(func=lambda call: call.data == "YES_pas_reg")
 def reg_pas(call):
-    Reg.get_reg(call.message)
+    if passenger_change == 0:
+        Reg.get_reg(call.message)
+    elif passenger_change == 1:
+        Reg.get_update_reg(call.message)
     ###bot.register_next_step_handler(call.message, get_reg(call.message))
 
 
@@ -77,13 +146,17 @@ def no_reg_pas(call):
     bot.register_next_step_handler(call.message, get_phone)
 
 
-@bot.callback_query_handler(func=lambda call: call.data == "YES_pas_dr")
+@bot.callback_query_handler(func=lambda call: call.data == "YES_reg_dr")
 def reg_dr(call):
-    Reg.get_reg_dr(call.message)
+    if drive_change == 0:
+        Reg.get_reg_dr(call.message)
+    elif drive_change == 1:
+        Reg.get_update_reg_dr(call.message)
+
     ###bot.register_next_step_handler(call.message, get_reg_dr(call.message))
 
 
-@bot.callback_query_handler(func=lambda call: call.data == "NO_pas_dr")
+@bot.callback_query_handler(func=lambda call: call.data == "NO_reg_dr")
 def no_reg_dr(call):
     bot.send_message(call.message.chat.id, "Номер телефона")
     bot.register_next_step_handler(call.message, get_phone_dr)
